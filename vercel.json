@@ -1,0 +1,12 @@
+{
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "*.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/login", "dest": "/login.js" },
+    { "src": "/api/test", "dest": "/test.js" },
+    { "src": "/verify", "dest": "/index.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
