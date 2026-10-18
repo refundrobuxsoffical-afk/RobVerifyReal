@@ -1,0 +1,9 @@
+{
+  "name": "robverify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Fake Roblox account verification site",
+  "engines": {
+    "node": ">=20"
+  }
+}
